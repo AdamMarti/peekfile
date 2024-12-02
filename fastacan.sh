@@ -166,6 +166,7 @@ echo
 			echo "Long file. Displaying only the first and last $N lines of $File".
 			echo "FIRST $N LINES:"
 			head -n $N $j
+			echo "..."
 			echo "LAST $N LINES:"
 			tail -n $N $j
 		fi
