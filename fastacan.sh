@@ -45,40 +45,42 @@ if [[ -z $N  ]]; then
 	
 fi
 
-MainFun=$(find $folderX -type f -name "*.fa" -or -name "*.fasta") #We define this function to not write this command every now and then.
+MainFun=$(find $folderX -name "*.fa" -or -name "*.fasta") #We define this function to not write this command every now and then.
 
-##Now comes the section for analyzing the different features for each file. However, there could be cases where the file has a termination of fa or fasta, but some issues happen: not being able to read the file because of lacking permissions, the file being empty or the file having a fa/fasta ending but not being actually a fasta file, file being hidden and being a binary file. This files are excluded from the analysis, with only the filename being printed. 
+##Now comes the section for analyzing the different features for each file. However, there could be cases where the file has a termination of fa or fasta, but some issues happen: not being able to read the file because of lacking permissions, the file being empty or the file having a fa/fasta ending but not being actually a fasta file. This files are excluded from the analysis, with only the filename being printed. Hidden files will be taken on account, but displaying a warning message because the file will not be visible at first sight.
 
 Empty=0
 Hidden=0
 NoText=0
-
 echo
 echo ================================================FILE PREPROCESSING================================================
 echo 
 echo "A file called numberoflines_inputfolder_.preprocessing.txt will have been created know in your current directory. You can take a look to see the complete list of not analyzed files."
 for i in $MainFun; do
 	if [[ ! -s $i ]]; then
-		echo "$i is an empty file. It is excluded from further analysis." >> "$N$FolderX.preprocessing.txt"
+		echo "$i is an empty file. It is excluded from further analysis." >> "$N$folderX.preprocessing.txt"
 		Empty=$((  Empty + 1))
+	#elif [[ ! -d $i ]]; then
+	#	echo "$i is a directory. It is excluded from further analysis." "$N$folderX.preprocessing.txt"
+	#	Directory=$(( Directory + 1))
 	elif [[ ! -r $i ]]; then
-		echo "$i is a file without reading permissions. It is excluded from further analysis." >> "$N$FolderX.preprocessing.txt"
+		echo "$i is a file without reading permissions. It is excluded from further analysis." >> "$N$folderX.preprocessing.txt"
 	elif [[ $(echo "$i" | grep -cE '/\..+') -gt 0 ]]; then
-    		echo "echo $i is a hidden file. No further analysis is done." >> "$N$FolderX.preprocessing.txt"
+    		echo "echo WARNING: $i is a hidden file." >> "$N$folderX.preprocessing.txt"
     		Hidden=$(( Hidden + 1))
-	elif [[ $(file $i | grep -ci "text") -eq 0 ]]; then
-		echo " $i has a fa/fasta ending on the filename, but it is not actually a text file, so no further analysis is done." >> "$NFolderX.preprocessing.txt"
+	elif [[ $(file $i | grep -ci "text") -eq 0 && $(file $i | grep -ci "link") -eq 0 ]]; then
+		echo " $i has a fa/fasta ending on the filename, but it is not actually a text file, so no further analysis is done." >> "$NfolderX.preprocessing.txt"
 		NoText=$(( NoText + 1))
 	else
-		echo "No issues with $i. Proceeding to analysis." >> "$N$FolderX.preprocessing.txt"
+		echo "No issues with $i. Proceeding to analysis." >> "$N$folderX.preprocessing.txt"
 	fi
 done 
 
-echo "Empty files: $Empty" >> "$N$FolderX.preprocessing.txt"
-echo "Hidden files: $Hidden" >> "$N$FolderX.preprocessing.txt"
-echo "No text files: $NoText" >> "$N$FolderX.preprocessing.txt"
-NFiles=$(( $(echo $MainFun | wc -w) - Empty - Hidden - NoText ))
-echo "Valid files: $NFiles" >> "$N$FolderX.preprocessing.txt"
+echo "Empty files: $Empty" >> "$N$folderX.preprocessing.txt"
+echo "Hidden files: $Hidden" >> "$N$folderX.preprocessing.txt"
+echo "No text files: $NoText" >> "$N$folderX.preprocessing.txt"
+NFiles=$(( $(echo $MainFun | wc -w) - Empty - NoText))
+echo "Valid files: $NFiles" >> "$N$folderX.preprocessing.txt"
 #I know it looks weird to append every time. But if not done like this and done by putting the for loop in a parenthesis and redirecting the output to the file, it did not calculate correctly the number of files.
 #A section of General Report is encoded as follows: 
 echo
@@ -131,21 +133,22 @@ echo
 			echo "$j is an empty file. No further analysis is done."
 		elif [[ ! -r $j ]]; then
 			echo "$j is a file without reading permissions. No further analysis for this file is done unless you change them."
-		elif [[ $(echo $j | grep -cE '/\..+') -gt 0 ]]; then
-    			echo "$j is a hidden file. No further analysis is done." #Encountering a count for ./ can be expected for example if you work on the current directory. However, if there is more than one, it must be a hidden file or a file in a hidden folder. 
-    		elif [[ $(file $j | grep -ci "text") -eq 0 ]]; then
+    		elif [[ $(file $j | grep -ci "text") -eq 0 && $(file $j | grep -ci "link") -eq 0 ]]; then
 			echo " $j has a fa/fasta ending on the filename, but it is not actually a text file, so no further analysis is done."
 	 #What the file function does is tell you what type of file you've got. For regular text files as fa/fasta files, it appears some output like ASCII text, or UTF8 text. This text word is not present in other files, so if the file is not a text file, the result of the grep will be 0.
 
 #Now comes the part of the analysis of the normal fa/fasta files
 		else
+			if [[ $(echo $j | grep -cE '/\..+') -gt 0 ]]; then
+    				echo "WARNING: $j is a hidden file. "
+    			fi
 			echo ==="NUMBER OF SEQUENCES: $Nseq"
 				if [[ -h $j ]] 
 				then  #this expression checks whether the file is a symbolic link or not
 		
 						echo ==="TYPE OF FILE: Symbolic link"
 					else
-						echo ==="TYPE OF FILE: Not a Symbolic link"
+						echo ==="TYPE OF FILE: Regular file"
 
 				fi
 				if [[ $(grep -vh "^>" $j | grep -i [^a,c,t,g,u,n] | wc -l ) -gt 0 ]]; then  #the regular expression used on the second grep ensures that only nucleotide characters can be nucleotides. U has been added for the very rare case where you could have RNA instead of DNA or cDNA. N has been added because some times this nucleotide appears for representing an unknown nucleotide in the sequence. 
@@ -176,4 +179,3 @@ echo "--------------------------------------------------------------------------
 echo
 done) 2> err.txt #Standard error is redirected as to not see innecessary information on the screen. 
 echo ===================================================END OF REPORT========================================================
-
